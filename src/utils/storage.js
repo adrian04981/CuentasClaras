@@ -3,7 +3,9 @@ import BackupManager from './backupManager';
 // Optimized storage utility for web localStorage
 const STORAGE_KEYS = {
   TRANSACTIONS: 'cc_transactions',
-  SETTINGS: 'cc_settings'
+  SETTINGS: 'cc_settings',
+  PARTIES: 'cc_parties',
+  PARTY_EXPENSES: 'cc_party_expenses'
 };
 
 class StorageManager {
@@ -11,7 +13,24 @@ class StorageManager {
   getTransactions() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      return data ? JSON.parse(data) : [];
+      let transactions = data ? JSON.parse(data) : [];
+      
+      // Migration: Ensure all transactions have accountId field
+      let needsMigration = false;
+      transactions = transactions.map(transaction => {
+        if (!transaction.hasOwnProperty('accountId')) {
+          needsMigration = true;
+          return { ...transaction, accountId: null };
+        }
+        return transaction;
+      });
+      
+      // Save migrated transactions if needed
+      if (needsMigration) {
+        this.saveTransactions(transactions);
+      }
+      
+      return transactions;
     } catch (error) {
       console.error('Error loading transactions:', error);
       return [];
@@ -344,12 +363,19 @@ class StorageManager {
 
   // Get account balance based on transactions
   getAccountBalance(accountId) {
+    const account = this.getAccounts().find(a => a.id === accountId);
+    if (!account) return 0;
+    
+    const initialBalance = account.initialBalance || 0;
     const transactions = this.getTransactions().filter(t => t.accountId === accountId);
-    return transactions.reduce((balance, transaction) => {
+    
+    const transactionBalance = transactions.reduce((balance, transaction) => {
       return transaction.type === 'income' 
         ? balance + transaction.amount 
         : balance - transaction.amount;
     }, 0);
+    
+    return initialBalance + transactionBalance;
   }
 
   // Category management
@@ -425,6 +451,270 @@ class StorageManager {
     } catch (error) {
       console.error('Error updating category:', error);
       return false;
+    }
+  }
+
+  // ===========================================
+  // PARTY MANAGEMENT FUNCTIONS
+  // ===========================================
+
+  // Get all parties
+  getParties() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.PARTIES);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error loading parties:', error);
+      return [];
+    }
+  }
+
+  // Save parties
+  saveParties(parties) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PARTIES, JSON.stringify(parties));
+      return true;
+    } catch (error) {
+      console.error('Error saving parties:', error);
+      return false;
+    }
+  }
+
+  // Create new party
+  createParty(partyData) {
+    try {
+      const parties = this.getParties();
+      const newParty = {
+        id: Date.now().toString(),
+        name: partyData.name,
+        description: partyData.description || '',
+        date: partyData.date,
+        participants: partyData.participants || [],
+        status: 'active', // active, settled
+        createdAt: new Date().toISOString(),
+        ...partyData
+      };
+      
+      parties.push(newParty);
+      return this.saveParties(parties) ? newParty : null;
+    } catch (error) {
+      console.error('Error creating party:', error);
+      return null;
+    }
+  }
+
+  // Update party
+  updateParty(partyId, updates) {
+    try {
+      const parties = this.getParties();
+      const partyIndex = parties.findIndex(p => p.id === partyId);
+      
+      if (partyIndex >= 0) {
+        parties[partyIndex] = { ...parties[partyIndex], ...updates };
+        return this.saveParties(parties);
+      }
+      return false;
+    } catch (error) {
+      console.error('Error updating party:', error);
+      return false;
+    }
+  }
+
+  // Delete party
+  deleteParty(partyId) {
+    try {
+      const parties = this.getParties().filter(p => p.id !== partyId);
+      // Also delete all expenses related to this party
+      const expenses = this.getPartyExpenses().filter(e => e.partyId !== partyId);
+      this.savePartyExpenses(expenses);
+      return this.saveParties(parties);
+    } catch (error) {
+      console.error('Error deleting party:', error);
+      return false;
+    }
+  }
+
+  // Get party expenses
+  getPartyExpenses(partyId = null) {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.PARTY_EXPENSES);
+      const expenses = data ? JSON.parse(data) : [];
+      return partyId ? expenses.filter(e => e.partyId === partyId) : expenses;
+    } catch (error) {
+      console.error('Error loading party expenses:', error);
+      return [];
+    }
+  }
+
+  // Save party expenses
+  savePartyExpenses(expenses) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PARTY_EXPENSES, JSON.stringify(expenses));
+      return true;
+    } catch (error) {
+      console.error('Error saving party expenses:', error);
+      return false;
+    }
+  }
+
+  // Add party expense
+  addPartyExpense(expenseData) {
+    try {
+      const expenses = this.getPartyExpenses();
+      const newExpense = {
+        id: Date.now().toString(),
+        partyId: expenseData.partyId,
+        description: expenseData.description,
+        amount: parseFloat(expenseData.amount),
+        paidBy: expenseData.paidBy, // participant ID who paid
+        splitType: expenseData.splitType, // 'equal', 'custom', 'percentage'
+        splitData: expenseData.splitData || {}, // { participantId: amount/percentage }
+        category: expenseData.category || 'Otros',
+        date: expenseData.date || new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      };
+      
+      expenses.push(newExpense);
+      return this.savePartyExpenses(expenses) ? newExpense : null;
+    } catch (error) {
+      console.error('Error adding party expense:', error);
+      return null;
+    }
+  }
+
+  // Update party expense
+  updatePartyExpense(expenseId, updates) {
+    try {
+      const expenses = this.getPartyExpenses();
+      const expenseIndex = expenses.findIndex(e => e.id === expenseId);
+      
+      if (expenseIndex >= 0) {
+        expenses[expenseIndex] = { ...expenses[expenseIndex], ...updates };
+        return this.savePartyExpenses(expenses);
+      }
+      return false;
+    } catch (error) {
+      console.error('Error updating party expense:', error);
+      return false;
+    }
+  }
+
+  // Delete party expense
+  deletePartyExpense(expenseId) {
+    try {
+      const expenses = this.getPartyExpenses().filter(e => e.id !== expenseId);
+      return this.savePartyExpenses(expenses);
+    } catch (error) {
+      console.error('Error deleting party expense:', error);
+      return false;
+    }
+  }
+
+  // Calculate party settlements (who owes whom)
+  calculatePartySettlements(partyId) {
+    try {
+      const party = this.getParties().find(p => p.id === partyId);
+      const expenses = this.getPartyExpenses(partyId);
+      
+      if (!party || !expenses.length) return { balances: {}, settlements: [] };
+
+      // Initialize balances for all participants
+      const balances = {};
+      party.participants.forEach(participant => {
+        balances[participant.id] = 0;
+      });
+
+      // Calculate what each person owes/is owed
+      expenses.forEach(expense => {
+        const paidBy = expense.paidBy;
+        const amount = expense.amount;
+
+        // Add amount paid to payer's balance
+        balances[paidBy] = (balances[paidBy] || 0) + amount;
+
+        // Subtract what each person owes based on split
+        if (expense.splitType === 'equal') {
+          const splitAmount = amount / party.participants.length;
+          party.participants.forEach(participant => {
+            balances[participant.id] = (balances[participant.id] || 0) - splitAmount;
+          });
+        } else if (expense.splitType === 'custom') {
+          Object.entries(expense.splitData).forEach(([participantId, owedAmount]) => {
+            balances[participantId] = (balances[participantId] || 0) - owedAmount;
+          });
+        }
+      });
+
+      // Calculate settlements (simplified debt resolution)
+      const settlements = this.simplifyDebts(balances);
+
+      return { balances, settlements };
+    } catch (error) {
+      console.error('Error calculating settlements:', error);
+      return { balances: {}, settlements: [] };
+    }
+  }
+
+  // Simplify debts to minimize number of transactions
+  simplifyDebts(balances) {
+    const creditors = []; // People who are owed money
+    const debtors = [];   // People who owe money
+
+    Object.entries(balances).forEach(([personId, balance]) => {
+      if (balance > 0.01) {
+        creditors.push({ id: personId, amount: balance });
+      } else if (balance < -0.01) {
+        debtors.push({ id: personId, amount: Math.abs(balance) });
+      }
+    });
+
+    const settlements = [];
+
+    while (creditors.length > 0 && debtors.length > 0) {
+      const creditor = creditors[0];
+      const debtor = debtors[0];
+
+      const settlementAmount = Math.min(creditor.amount, debtor.amount);
+
+      settlements.push({
+        from: debtor.id,
+        to: creditor.id,
+        amount: Math.round(settlementAmount * 100) / 100
+      });
+
+      creditor.amount -= settlementAmount;
+      debtor.amount -= settlementAmount;
+
+      if (creditor.amount < 0.01) creditors.shift();
+      if (debtor.amount < 0.01) debtors.shift();
+    }
+
+    return settlements;
+  }
+
+  // Get party summary
+  getPartySummary(partyId) {
+    try {
+      const party = this.getParties().find(p => p.id === partyId);
+      const expenses = this.getPartyExpenses(partyId);
+      
+      if (!party) return null;
+
+      const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const { balances, settlements } = this.calculatePartySettlements(partyId);
+
+      return {
+        party,
+        totalExpenses: totalAmount,
+        expenseCount: expenses.length,
+        participantCount: party.participants.length,
+        balances,
+        settlements,
+        expenses
+      };
+    } catch (error) {
+      console.error('Error getting party summary:', error);
+      return null;
     }
   }
 }

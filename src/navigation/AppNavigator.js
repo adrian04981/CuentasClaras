@@ -1,14 +1,46 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 
 import HomeScreen from '../screens/HomeScreen';
 import AnalysisScreen from '../screens/AnalysisScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import PartyScreen from '../screens/PartyScreen';
+import PartyDetailScreen from '../screens/PartyDetailScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+// Stack Navigator for Party screens
+const PartyStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="PartyList"
+        component={PartyScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PartyDetail"
+        component={PartyDetailScreen}
+        options={{
+          headerTitle: 'Detalle de Fiesta',
+          headerStyle: {
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const AppNavigator = () => {
   return (
@@ -22,6 +54,8 @@ const AppNavigator = () => {
               iconName = focused ? 'home' : 'home-outline';
             } else if (route.name === 'Analysis') {
               iconName = focused ? 'analytics' : 'analytics-outline';
+            } else if (route.name === 'Party') {
+              iconName = focused ? 'people' : 'people-outline';
             } else if (route.name === 'Settings') {
               iconName = focused ? 'settings' : 'settings-outline';
             }
@@ -69,6 +103,15 @@ const AppNavigator = () => {
           options={{
             title: 'Análisis',
             headerTitle: 'Análisis Financiero',
+          }}
+        />
+        <Tab.Screen
+          name="Party"
+          component={PartyStack}
+          options={{
+            title: 'Fiestas',
+            headerTitle: 'Gestión de Fiestas',
+            headerShown: false,
           }}
         />
         <Tab.Screen

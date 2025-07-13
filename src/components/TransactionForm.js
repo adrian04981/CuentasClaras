@@ -47,7 +47,7 @@ const TransactionForm = ({
       return;
     }
 
-    if (mode === 'semi-professional' && !accountId) {
+    if (mode === 'semi-professional' && accounts.length > 0 && !accountId) {
       Alert.alert('Error', 'Por favor selecciona una cuenta');
       return;
     }
@@ -58,7 +58,7 @@ const TransactionForm = ({
       category,
       description,
       date,
-      ...(mode === 'semi-professional' && { accountId })
+      accountId: mode === 'semi-professional' ? accountId : null
     };
 
     if (editTransaction) {
@@ -148,18 +148,26 @@ const TransactionForm = ({
         {mode === 'semi-professional' && (
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Cuenta</Text>
-            <TouchableOpacity
-              style={styles.categoryButton}
-              onPress={() => setShowAccountModal(true)}
-            >
-              <Text style={[styles.categoryText, !accountId && styles.placeholder]}>
-                {accountId ? 
-                  accounts.find(a => a.id === accountId)?.name || 'Seleccionar cuenta' : 
-                  'Seleccionar cuenta'
-                }
-              </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
+            {accounts.length === 0 ? (
+              <View style={styles.noAccountsContainer}>
+                <Text style={styles.noAccountsText}>
+                  No hay cuentas disponibles. Ve a Configuración para crear una cuenta.
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.categoryButton}
+                onPress={() => setShowAccountModal(true)}
+              >
+                <Text style={[styles.categoryText, !accountId && styles.placeholder]}>
+                  {accountId ? 
+                    accounts.find(a => a.id === accountId)?.name || 'Seleccionar cuenta' : 
+                    'Seleccionar cuenta'
+                  }
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -461,6 +469,18 @@ const styles = StyleSheet.create({
   accountType: {
     fontSize: 14,
     color: '#666',
+  },
+  noAccountsContainer: {
+    padding: 16,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  noAccountsText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
   },
 });
 
