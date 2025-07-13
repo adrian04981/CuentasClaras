@@ -14,7 +14,12 @@ const TransactionList = ({
   onEdit, 
   onDelete, 
   title = "Transacciones",
-  emptyMessage = "No hay transacciones"
+  emptyMessage = "No hay transacciones",
+  formatCurrency = (amount) => new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2
+  }).format(amount)
 }) => {
   const handleDelete = (transaction) => {
     Alert.alert(
@@ -37,11 +42,7 @@ const TransactionList = ({
   };
 
   const formatAmount = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount);
+    return formatCurrency(amount);
   };
 
   const renderTransaction = ({ item }) => (

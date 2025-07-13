@@ -2,7 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const FinancialSummary = ({ transactions, period = "Este mes" }) => {
+const FinancialSummary = ({ 
+  transactions, 
+  period = "Este mes",
+  formatCurrency = (amount) => new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2
+  }).format(Math.abs(amount))
+}) => {
   const calculateTotals = () => {
     const income = transactions
       .filter(t => t.type === 'income')
@@ -18,11 +26,7 @@ const FinancialSummary = ({ transactions, period = "Este mes" }) => {
   };
 
   const formatAmount = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(Math.abs(amount));
+    return formatCurrency(Math.abs(amount));
   };
 
   const { income, expenses, balance } = calculateTotals();

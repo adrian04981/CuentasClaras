@@ -13,10 +13,39 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import StorageManager from '../utils/storage';
+import { useSettings } from '../hooks/useSettings';
+import CurrencySelector from '../components/CurrencySelector';
+import ModeSelector from '../components/ModeSelector';
+import AccountManager from '../components/AccountManager';
+import CategoryManager from '../components/CategoryManager';
+import CustomModal from '../components/CustomModal';
+import BackupModal from '../components/BackupModal';
 
 const SettingsScreen = () => {
+  const {
+    settings,
+    loading,
+    updateSettings,
+    resetSettings,
+    formatCurrency,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    setDefaultAccount,
+    getAccountBalance,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    getCategories
+  } = useSettings();
+
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [importData, setImportData] = useState('');
   const [storageInfo, setStorageInfo] = useState(null);
 
@@ -31,78 +60,38 @@ const SettingsScreen = () => {
 
   const handleExportData = useCallback(async () => {
     try {
-      const data = StorageManager.exportData();
-      const jsonString = JSON.stringify(data, null, 2);
-      
-      if (Platform.OS === 'web') {
-        // For web, download as file
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `cuentas-claras-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        Alert.alert('Éxito', 'Backup descargado correctamente');
-      } else {
-        // For mobile, use share
-        await Share.share({
-          message: jsonString,
-          title: 'Backup Cuentas Claras',
-        });
-      }
-      
-      setShowExportModal(false);
+      const result = await StorageManager.exportCompressedBackup();
+      Alert.alert(
+        'Éxito', 
+        result.message + '\n\nEl archivo incluye todas tus transacciones, configuraciones, categorías y cuentas.',
+        [{ text: 'OK', onPress: () => setShowBackupModal(false) }]
+      );
     } catch (error) {
       console.error('Error exporting data:', error);
-      Alert.alert('Error', 'No se pudo exportar los datos');
+      Alert.alert('Error', error.message || 'No se pudo crear el backup');
     }
   }, []);
 
-  const handleImportData = useCallback(() => {
+  const handleImportData = useCallback(async () => {
     try {
-      if (!importData.trim()) {
-        Alert.alert('Error', 'Por favor pega los datos del backup');
-        return;
-      }
-
-      const data = JSON.parse(importData);
+      const result = await StorageManager.importFromFile();
       
-      if (!data.transactions || !Array.isArray(data.transactions)) {
-        Alert.alert('Error', 'Formato de datos inválido');
-        return;
-      }
-
       Alert.alert(
-        'Confirmar importación',
-        `¿Estás seguro de que quieres importar ${data.transactions.length} transacciones? Esto reemplazará todos tus datos actuales.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Importar',
-            style: 'destructive',
-            onPress: () => {
-              const success = StorageManager.importData(data);
-              if (success) {
-                Alert.alert('Éxito', 'Datos importados correctamente');
-                setImportData('');
-                setShowImportModal(false);
-                loadStorageInfo();
-              } else {
-                Alert.alert('Error', 'No se pudieron importar los datos');
-              }
-            }
+        'Importación exitosa',
+        `Se han importado:\n• ${result.transactionCount} transacciones\n• ${result.hasSettings ? 'Configuraciones' : 'Sin configuraciones'}\n• ${result.hasCategories ? 'Categorías personalizadas' : 'Sin categorías'}\n• ${result.hasAccounts ? 'Cuentas' : 'Sin cuentas'}`,
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            setShowBackupModal(false);
+            loadStorageInfo();
           }
-        ]
+        }]
       );
     } catch (error) {
       console.error('Error importing data:', error);
-      Alert.alert('Error', 'Formato de datos inválido');
+      Alert.alert('Error', error.message || 'No se pudieron importar los datos');
     }
-  }, [importData, loadStorageInfo]);
+  }, [loadStorageInfo]);
 
   const handleClearAllData = useCallback(() => {
     Alert.alert(
@@ -127,6 +116,46 @@ const SettingsScreen = () => {
     );
   }, [loadStorageInfo]);
 
+  const handleCurrencyChange = useCallback((currency, symbol) => {
+    updateSettings({ 
+      currency, 
+      currencySymbol: symbol 
+    });
+    Alert.alert('Éxito', 'Moneda actualizada correctamente');
+    setShowCurrencyModal(false);
+  }, [updateSettings]);
+
+  const handleModeChange = useCallback((mode) => {
+    updateSettings({ mode });
+    Alert.alert('Éxito', `Modo cambiado a ${mode === 'basic' ? 'Básico' : 'Semi-Profesional'}`);
+    setShowModeModal(false);
+  }, [updateSettings]);
+
+  const getModeInfo = () => {
+    if (!settings) return { title: 'Cargando...', subtitle: '' };
+    
+    return settings.mode === 'basic' 
+      ? { title: 'Modo Básico', subtitle: 'Solo ingresos y gastos' }
+      : { title: 'Modo Semi-Profesional', subtitle: 'Gestión completa con cuentas' };
+  };
+
+  const getCurrencyInfo = () => {
+    if (!settings) return { title: 'Cargando...', subtitle: '' };
+    
+    return {
+      title: `${settings.currency || 'EUR'} - ${settings.currencySymbol || '€'}`,
+      subtitle: 'Moneda predeterminada'
+    };
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Cargando configuración...</Text>
+      </View>
+    );
+  }
+
   const SettingItem = ({ icon, title, subtitle, onPress, danger = false }) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress}>
       <View style={styles.settingIcon}>
@@ -148,129 +177,67 @@ const SettingsScreen = () => {
     </TouchableOpacity>
   );
 
-  const ExportModal = () => (
-    <Modal
-      visible={showExportModal}
-      transparent={true}
-      animationType="slide"
+  const CurrencyModal = () => (
+    <CustomModal
+      isVisible={showCurrencyModal}
+      onClose={() => setShowCurrencyModal(false)}
+      title="Seleccionar Moneda"
+      size="large"
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Exportar Datos</Text>
-            <TouchableOpacity onPress={() => setShowExportModal(false)}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.modalBody}>
-            <View style={styles.infoCard}>
-              <Ionicons name="information-circle" size={24} color="#007AFF" />
-              <Text style={styles.infoText}>
-                Se creará un archivo de backup con todas tus transacciones y configuraciones.
-                Guarda este archivo en un lugar seguro.
-              </Text>
-            </View>
-            
-            {storageInfo && (
-              <View style={styles.statsCard}>
-                <Text style={styles.statsTitle}>Información del backup:</Text>
-                <Text style={styles.statsItem}>
-                  • {storageInfo.transactionsCount} transacciones
-                </Text>
-                <Text style={styles.statsItem}>
-                  • Tamaño: {storageInfo.formattedSize}
-                </Text>
-                <Text style={styles.statsItem}>
-                  • Fecha: {new Date().toLocaleDateString('es-ES')}
-                </Text>
-              </View>
-            )}
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={styles.cancelButton} 
-              onPress={() => setShowExportModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.exportButton} 
-              onPress={handleExportData}
-            >
-              <Ionicons name="download" size={16} color="#fff" />
-              <Text style={styles.exportButtonText}>Exportar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+      <CurrencySelector
+        selectedCurrency={settings?.currency || 'EUR'}
+        onCurrencySelect={handleCurrencyChange}
+      />
+    </CustomModal>
   );
 
-  const ImportModal = () => (
-    <Modal
-      visible={showImportModal}
-      transparent={true}
-      animationType="slide"
+  const ModeModal = () => (
+    <CustomModal
+      isVisible={showModeModal}
+      onClose={() => setShowModeModal(false)}
+      title="Seleccionar Modo"
+      size="large"
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Importar Datos</Text>
-            <TouchableOpacity onPress={() => setShowImportModal(false)}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.modalBody}>
-            <View style={[styles.infoCard, styles.warningCard]}>
-              <Ionicons name="warning" size={24} color="#FF9500" />
-              <Text style={styles.infoText}>
-                ¡Atención! Importar datos reemplazará toda tu información actual.
-                Asegúrate de tener un backup antes de continuar.
-              </Text>
-            </View>
-            
-            <Text style={styles.inputLabel}>
-              Pega aquí el contenido del archivo de backup:
-            </Text>
-            
-            <TextInput
-              style={styles.importTextArea}
-              value={importData}
-              onChangeText={setImportData}
-              placeholder="Pega el contenido JSON del backup aquí..."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={8}
-            />
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={styles.cancelButton} 
-              onPress={() => {
-                setShowImportModal(false);
-                setImportData('');
-              }}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.importButton, !importData.trim() && styles.disabledButton]} 
-              onPress={handleImportData}
-              disabled={!importData.trim()}
-            >
-              <Ionicons name="cloud-upload" size={16} color="#fff" />
-              <Text style={styles.importButtonText}>Importar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+      <ModeSelector
+        selectedMode={settings?.mode || 'basic'}
+        onModeSelect={handleModeChange}
+      />
+    </CustomModal>
+  );
+
+  const AccountModal = () => (
+    <CustomModal
+      isVisible={showAccountModal}
+      onClose={() => setShowAccountModal(false)}
+      title="Gestionar Cuentas"
+      size="large"
+    >
+      <AccountManager
+        accounts={settings?.accounts || []}
+        onAddAccount={addAccount}
+        onUpdateAccount={updateAccount}
+        onDeleteAccount={deleteAccount}
+        onSetDefault={setDefaultAccount}
+        getAccountBalance={getAccountBalance}
+        formatCurrency={formatCurrency}
+      />
+    </CustomModal>
+  );
+
+  const CategoryModal = () => (
+    <CustomModal
+      isVisible={showCategoryModal}
+      onClose={() => setShowCategoryModal(false)}
+      title="Gestionar Categorías"
+      size="large"
+    >
+      <CategoryManager
+        categories={settings?.categories || { expense: [], income: [] }}
+        onAddCategory={addCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
+      />
+    </CustomModal>
   );
 
   return (
@@ -297,22 +264,50 @@ const SettingsScreen = () => {
           </View>
         )}
 
+        {/* App Configuration */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Configuración de la aplicación</Text>
+          
+          <SettingItem
+            icon="globe"
+            title={getCurrencyInfo().title}
+            subtitle={getCurrencyInfo().subtitle}
+            onPress={() => setShowCurrencyModal(true)}
+          />
+          
+          <SettingItem
+            icon="settings"
+            title={getModeInfo().title}
+            subtitle={getModeInfo().subtitle}
+            onPress={() => setShowModeModal(true)}
+          />
+
+          {settings?.mode === 'semi-professional' && (
+            <SettingItem
+              icon="card"
+              title="Gestionar cuentas"
+              subtitle="Bancos, tarjetas y efectivo"
+              onPress={() => setShowAccountModal(true)}
+            />
+          )}
+
+          <SettingItem
+            icon="list"
+            title="Gestionar categorías"
+            subtitle="Tipos de ingresos y gastos"
+            onPress={() => setShowCategoryModal(true)}
+          />
+        </View>
+
         {/* Data Management */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gestión de datos</Text>
           
           <SettingItem
-            icon="download"
-            title="Exportar datos"
-            subtitle="Crear backup de todas tus transacciones"
-            onPress={() => setShowExportModal(true)}
-          />
-          
-          <SettingItem
-            icon="cloud-upload"
-            title="Importar datos"
-            subtitle="Restaurar desde un archivo de backup"
-            onPress={() => setShowImportModal(true)}
+            icon="archive"
+            title="Backup y Restauración"
+            subtitle="Gestionar copias de seguridad comprimidas"
+            onPress={() => setShowBackupModal(true)}
           />
         </View>
 
@@ -339,14 +334,40 @@ const SettingsScreen = () => {
               Aplicación de gestión financiera personal desarrollada con React Native.
               Todos los datos se almacenan localmente en tu dispositivo.
             </Text>
+            <Text style={styles.developerInfo}>
+              Desarrollado por Adrian Hinojosa
+            </Text>
+            <TouchableOpacity 
+              style={styles.githubLink}
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  window.open('https://github.com/adrian04981/CuentasClaras', '_blank');
+                } else {
+                  // Para móvil usaríamos Linking
+                  console.log('Abrir GitHub en móvil');
+                }
+              }}
+            >
+              <Ionicons name="logo-github" size={16} color="#007AFF" />
+              <Text style={styles.githubText}>Ver código fuente</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      <ExportModal />
-      <ImportModal />
+      <BackupModal
+        visible={showBackupModal}
+        onClose={() => setShowBackupModal(false)}
+        onExport={handleExportData}
+        onImport={handleImportData}
+        storageInfo={storageInfo}
+      />
+      <CurrencyModal />
+      <ModeModal />
+      <AccountModal />
+      <CategoryModal />
     </View>
   );
 };
@@ -355,6 +376,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
   },
   scrollView: {
     flex: 1,
@@ -477,6 +508,31 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  developerInfo: {
+    fontSize: 14,
+    color: '#007AFF',
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  githubLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  githubText: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginLeft: 6,
+    fontWeight: '500',
   },
   bottomPadding: {
     height: 40,

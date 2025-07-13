@@ -1,23 +1,68 @@
-# Cuentas Claras 💰
+# 💰 Cuentas Claras
 
-Una aplicación moderna de gestión financiera personal desarrollada con React Native, optimizada para web y móvil.
+<div align="center">
 
-## 🚀 Características
+![Cuentas Claras Logo](https://via.placeholder.com/150x150/007AFF/FFFFFF?text=CC)
 
-### 📊 Gestión de Transacciones
-- **Registro rápido**: Añade ingresos y gastos con categorías predefinidas
-- **Edición intuitiva**: Modifica o elimina transacciones existentes
-- **Navegación temporal**: Navega por meses para ver el historial
+**Aplicación de gestión financiera personal desarrollada con React Native**
 
-### 📈 Análisis Financiero
-- **Gráficos interactivos**: Visualiza tus datos con gráficos de pastel, barras y tendencias
-- **Filtros avanzados**: Filtra por fecha, categoría, tipo y rango de montos
-- **Resúmenes automáticos**: Ve balances, totales y estadísticas al instante
+[![React Native](https://img.shields.io/badge/React%20Native-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://javascript.info/)
+[![Open Source](https://img.shields.io/badge/Open%20Source-💚-green?style=for-the-badge)](https://opensource.org/)
 
-### ⚙️ Configuración y Backup
-- **Exportar datos**: Descarga un backup completo en formato JSON
-- **Importar datos**: Restaura desde un archivo de backup
-- **Gestión de datos**: Elimina todos los datos cuando necesites empezar de cero
+---
+
+### 📱 Descarga la APK
+
+[![Descargar APK](https://img.shields.io/badge/📱_Descargar_APK-4CAF50?style=for-the-badge&logoColor=white)](https://github.com/adrian04981/CuentasClaras/releases/latest/download/CuentasClaras.apk)
+
+*Version 1.0.0 - Compatible con Android 5.0+*
+
+---
+
+</div>
+
+## 🌟 Características Principales
+
+### 📊 **Gestión Financiera Completa**
+- ✅ Registro de ingresos y gastos
+- ✅ Categorías personalizables (Alimentación, Transporte, Salud, etc.)
+- ✅ Historial detallado por mes
+- ✅ Análisis visual con gráficos interactivos
+
+### 🎯 **Dos Modos de Uso**
+- **🔰 Modo Básico**: Perfecto para usuarios principiantes
+  - Solo ingresos y gastos
+  - Interfaz simplificada
+  
+- **💼 Modo Semi-Profesional**: Para usuarios avanzados
+  - Gestión de múltiples cuentas bancarias
+  - Transferencias entre cuentas
+  - Reportes detallados
+
+### � **Soporte Multi-Moneda**
+- 16+ monedas soportadas (EUR, USD, GBP, JPY, MXN, ARS, etc.)
+- Formateo automático según la moneda seleccionada
+- Símbolos y banderas de países
+
+### 📱 **Multiplataforma**
+- **🌐 Web**: Funciona en cualquier navegador moderno
+- **📱 Android**: APK nativa optimizada
+- **🔄 Responsive**: Se adapta a cualquier tamaño de pantalla
+
+### 🔒 **Privacidad y Seguridad**
+- **📴 100% Offline**: Sin conexión a internet requerida
+- **🏠 Datos Locales**: Todo se guarda en tu dispositivo
+- **🔐 Sin Registro**: No necesitas crear cuentas
+- **🚫 Sin Publicidad**: Completamente libre de ads
+
+### 💾 **Sistema de Backup Avanzado**
+- **🗜️ Compresión**: Archivos hasta 70% más pequeños
+- **📁 Formato .ccbackup**: Archivos optimizados con metadata
+- **⬇️ Descarga Automática**: Un clic para crear backup
+- **⬆️ Importación Fácil**: Restaura desde archivo
+- **🔄 Compatibilidad**: Funciona con backups antiguos
 - **Almacenamiento local**: Todos los datos se guardan en tu dispositivo
 
 ## 🛠️ Tecnologías

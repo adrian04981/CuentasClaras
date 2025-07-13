@@ -7,6 +7,7 @@ import {
   Alert
 } from 'react-native';
 import { useTransactions } from '../hooks/useTransactions';
+import { useSettings } from '../hooks/useSettings';
 import TransactionForm from '../components/TransactionForm';
 import TransactionList from '../components/TransactionList';
 import FinancialSummary from '../components/FinancialSummary';
@@ -22,6 +23,11 @@ const HomeScreen = () => {
     getTransactionsByMonth,
     reload
   } = useTransactions();
+
+  const {
+    settings,
+    formatCurrency
+  } = useSettings();
 
   const currentDate = new Date();
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -100,6 +106,8 @@ const HomeScreen = () => {
             onSubmit={editingTransaction ? handleUpdateTransaction : handleAddTransaction}
             editTransaction={editingTransaction}
             onCancel={handleCancelEdit}
+            settings={settings}
+            formatCurrency={formatCurrency}
           />
         </View>
 
@@ -114,6 +122,7 @@ const HomeScreen = () => {
         <FinancialSummary
           transactions={monthTransactions}
           period={`${MONTHS[selectedMonth]} ${selectedYear}`}
+          formatCurrency={formatCurrency}
         />
 
         {/* Transaction List */}
@@ -124,6 +133,7 @@ const HomeScreen = () => {
             onDelete={handleDeleteTransaction}
             title={`Transacciones - ${MONTHS[selectedMonth]} ${selectedYear}`}
             emptyMessage="No hay transacciones en este período"
+            formatCurrency={formatCurrency}
           />
         </View>
       </ScrollView>

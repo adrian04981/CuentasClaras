@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransactions } from '../hooks/useTransactions';
+import { useSettings } from '../hooks/useSettings';
 import ChartComponent from '../components/OptimizedChart';
 import FinancialSummary from '../components/FinancialSummary';
 
 const AnalysisScreen = () => {
   const { transactions, loading, reload } = useTransactions();
+  const { settings, formatCurrency } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   
   // Filter states
@@ -308,6 +310,7 @@ const AnalysisScreen = () => {
         <FinancialSummary 
           transactions={filteredTransactions} 
           period={getFilterPeriodText()}
+          formatCurrency={formatCurrency}
         />
 
         {/* Chart Type Selector */}

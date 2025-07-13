@@ -11,28 +11,44 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const CATEGORIES = {
-  expense: [
-    'Alimentación', 'Transporte', 'Entretenimiento', 'Salud', 
-    'Educación', 'Hogar', 'Ropa', 'Servicios', 'Otros'
-  ],
-  income: [
-    'Salario', 'Freelance', 'Inversiones', 'Ventas', 
-    'Bonos', 'Regalos', 'Otros'
-  ]
-};
+const TransactionForm = ({ 
+  onSubmit, 
+  editTransaction = null, 
+  onCancel,
+  settings = null,
+  formatCurrency = (amount) => `€${amount}` 
+}) => {
+  const CATEGORIES = settings?.categories || {
+    expense: [
+      'Alimentación', 'Transporte', 'Entretenimiento', 'Salud', 
+      'Educación', 'Hogar', 'Ropa', 'Servicios', 'Otros'
+    ],
+    income: [
+      'Salario', 'Freelance', 'Inversiones', 'Ventas', 
+      'Bonos', 'Regalos', 'Otros'
+    ]
+  };
 
-const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
+  const mode = settings?.mode || 'basic';
+  const accounts = settings?.accounts || [];
+  const defaultAccount = settings?.defaultAccount || null;
   const [type, setType] = useState(editTransaction?.type || 'expense');
   const [amount, setAmount] = useState(editTransaction?.amount?.toString() || '');
   const [category, setCategory] = useState(editTransaction?.category || '');
   const [description, setDescription] = useState(editTransaction?.description || '');
   const [date, setDate] = useState(editTransaction?.date || new Date().toISOString().split('T')[0]);
+  const [accountId, setAccountId] = useState(editTransaction?.accountId || defaultAccount || '');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
 
   const handleSubmit = () => {
     if (!amount || !category || !description) {
       Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    if (mode === 'semi-professional' && !accountId) {
+      Alert.alert('Error', 'Por favor selecciona una cuenta');
       return;
     }
 
@@ -41,7 +57,8 @@ const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
       amount: parseFloat(amount),
       category,
       description,
-      date
+      date,
+      ...(mode === 'semi-professional' && { accountId })
     };
 
     if (editTransaction) {
@@ -56,6 +73,7 @@ const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
       setCategory('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
+      setAccountId(defaultAccount || '');
     }
   };
 
@@ -65,6 +83,7 @@ const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
     setCategory('');
     setDescription('');
     setDate(new Date().toISOString().split('T')[0]);
+    setAccountId(defaultAccount || '');
   };
 
   return (
@@ -124,6 +143,25 @@ const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
             placeholderTextColor="#999"
           />
         </View>
+
+        {/* Account Selector - Only in semi-professional mode */}
+        {mode === 'semi-professional' && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Cuenta</Text>
+            <TouchableOpacity
+              style={styles.categoryButton}
+              onPress={() => setShowAccountModal(true)}
+            >
+              <Text style={[styles.categoryText, !accountId && styles.placeholder]}>
+                {accountId ? 
+                  accounts.find(a => a.id === accountId)?.name || 'Seleccionar cuenta' : 
+                  'Seleccionar cuenta'
+                }
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Category Selector */}
         <View style={styles.inputGroup}>
@@ -211,6 +249,47 @@ const TransactionForm = ({ onSubmit, editTransaction = null, onCancel }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Account Selection Modal - Only in semi-professional mode */}
+      {mode === 'semi-professional' && (
+        <Modal
+          visible={showAccountModal}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Cuenta</Text>
+                <TouchableOpacity onPress={() => setShowAccountModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.categoryList}>
+                {accounts.map((account) => (
+                  <TouchableOpacity
+                    key={account.id}
+                    style={styles.categoryItem}
+                    onPress={() => {
+                      setAccountId(account.id);
+                      setShowAccountModal(false);
+                    }}
+                  >
+                    <View style={styles.accountItem}>
+                      <View style={[styles.accountColor, { backgroundColor: account.color }]} />
+                      <View style={styles.accountInfo}>
+                        <Text style={styles.accountName}>{account.name}</Text>
+                        <Text style={styles.accountType}>{account.bank || account.type}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -360,6 +439,28 @@ const styles = StyleSheet.create({
   categoryItemText: {
     fontSize: 16,
     color: '#333',
+  },
+  accountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  accountColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  accountType: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 

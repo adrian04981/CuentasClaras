@@ -20,6 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#007AFF"
       },
+      "package": "com.adrian04981.cuentasclaras",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true
     },
     "web": {
