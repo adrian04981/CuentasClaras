@@ -13,11 +13,11 @@
 
 ---
 
-### 📱 Descarga la APK
+## 📱 Descarga APK Aquí
 
-[![Descargar APK](https://img.shields.io/badge/📱_Descargar_APK-4CAF50?style=for-the-badge&logoColor=white)](https://github.com/adrian04981/CuentasClaras/releases/latest/download/CuentasClaras.apk)
+[![Descargar APK](https://img.shields.io/badge/📱_DESCARGAR_APK-4CAF50?style=for-the-badge&logoColor=white&logo=android)](./CuentasClaras.apk)
 
-*Version 1.0.0 - Compatible con Android 5.0+*
+*🚀 Version 1.0.0 - Compatible con Android 5.0+ - Tamaño: ~8MB*
 
 ---
 
