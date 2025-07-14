@@ -28,7 +28,8 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
     splitType: expense?.splitType || 'equal',
     splitData: expense?.splitData || {},
     category: expense?.category || 'Otros',
-    date: expense?.date || new Date().toISOString().split('T')[0]
+    date: expense?.date || new Date().toISOString().split('T')[0],
+    isPaidImmediately: expense?.isPaidImmediately || false
   });
 
   const [showParticipantModal, setShowParticipantModal] = useState(false);
@@ -45,13 +46,16 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
       return;
     }
 
-    if (!formData.paidBy) {
+    // For immediate payment, "YO" is automatically set as payer
+    if (formData.isPaidImmediately) {
+      setFormData(prev => ({ ...prev, paidBy: 'YO' }));
+    } else if (!formData.paidBy) {
       Alert.alert('Error', 'Debe seleccionar quién pagó');
       return;
     }
 
-    // Validate custom split
-    if (formData.splitType === 'custom') {
+    // Skip validation for immediate payments
+    if (!formData.isPaidImmediately && formData.splitType === 'custom') {
       const totalAssigned = Object.values(formData.splitData).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0);
       const totalAmount = parseFloat(formData.amount);
       
@@ -87,12 +91,18 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
       }
     }
 
-    // Auto-generate equal split if not custom
+    // Generate split data based on payment type
     let splitData = formData.splitData;
-    if (formData.splitType === 'equal') {
-      const amountPerPerson = parseFloat(formData.amount) / party.participants.length;
+    
+    if (formData.isPaidImmediately) {
+      // For immediate payment, only "YO" pays and no debts are created
+      splitData = { 'YO': parseFloat(formData.amount) };
+    } else if (formData.splitType === 'equal') {
+      // Normal equal split
+      const allParticipants = getAllParticipants().filter(p => p.id !== 'YO'); // Exclude YO for regular splits
+      const amountPerPerson = parseFloat(formData.amount) / allParticipants.length;
       splitData = {};
-      party.participants.forEach(participant => {
+      allParticipants.forEach(participant => {
         splitData[participant.id] = amountPerPerson;
       });
     }
@@ -100,13 +110,22 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
     onSubmit({
       ...formData,
       amount: parseFloat(formData.amount),
-      splitData
+      paidBy: formData.isPaidImmediately ? 'YO' : formData.paidBy,
+      splitData,
+      isPaidImmediately: formData.isPaidImmediately || false
     });
   };
 
   const getParticipantName = (participantId) => {
+    if (participantId === 'YO') return 'YO';
     const participant = party.participants.find(p => p.id === participantId);
     return participant ? participant.name : 'Seleccionar';
+  };
+
+  // Get all participants including "YO" as a fixed participant
+  const getAllParticipants = () => {
+    const yoParticipant = { id: 'YO', name: 'YO' };
+    return [yoParticipant, ...party.participants];
   };
 
   const calculateSplitPreview = () => {
@@ -144,9 +163,10 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
       return;
     }
     
-    const amountPerPerson = parseFloat(formData.amount) / party.participants.length;
+    const allParticipants = getAllParticipants();
+    const amountPerPerson = parseFloat(formData.amount) / allParticipants.length;
     const newSplitData = {};
-    party.participants.forEach(participant => {
+    allParticipants.forEach(participant => {
       newSplitData[participant.id] = amountPerPerson.toFixed(2);
     });
     
@@ -234,47 +254,75 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
         {/* Split Type */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>División del gasto</Text>
-          <View style={styles.splitTypeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.splitTypeButton,
-                formData.splitType === 'equal' && styles.splitTypeButtonActive
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, splitType: 'equal', splitData: {} }))}
-            >
-              <Text style={[
-                styles.splitTypeText,
-                formData.splitType === 'equal' && styles.splitTypeTextActive
-              ]}>
-                División Igual
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.splitTypeButton,
-                formData.splitType === 'custom' && styles.splitTypeButtonActive
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, splitType: 'custom' }))}
-            >
-              <Text style={[
-                styles.splitTypeText,
-                formData.splitType === 'custom' && styles.splitTypeTextActive
-              ]}>
-                División Personalizada
-              </Text>
-            </TouchableOpacity>
-          </View>
           
-          {formData.amount && (
+          {/* Immediate Payment Toggle */}
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => setFormData(prev => ({ 
+              ...prev, 
+              isPaidImmediately: !prev.isPaidImmediately,
+              paidBy: !prev.isPaidImmediately ? 'YO' : prev.paidBy
+            }))}
+          >
+            <View style={[styles.checkbox, formData.isPaidImmediately && styles.checkboxChecked]}>
+              {formData.isPaidImmediately && (
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              💰 Pagado en el momento (sin generar deudas)
+            </Text>
+          </TouchableOpacity>
+          
+          {!formData.isPaidImmediately && (
+            <View style={styles.splitTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.splitTypeButton,
+                  formData.splitType === 'equal' && styles.splitTypeButtonActive
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, splitType: 'equal', splitData: {} }))}
+              >
+                <Text style={[
+                  styles.splitTypeText,
+                  formData.splitType === 'equal' && styles.splitTypeTextActive
+                ]}>
+                  División Igual
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.splitTypeButton,
+                  formData.splitType === 'custom' && styles.splitTypeButtonActive
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, splitType: 'custom' }))}
+              >
+                <Text style={[
+                  styles.splitTypeText,
+                  formData.splitType === 'custom' && styles.splitTypeTextActive
+                ]}>
+                  División Personalizada
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {formData.amount && !formData.isPaidImmediately && (
             <Text style={styles.splitPreview}>
               {calculateSplitPreview()}
+            </Text>
+          )}
+          
+          {formData.isPaidImmediately && (
+            <Text style={styles.immediatePaymentInfo}>
+              ✅ YO pagó todo inmediatamente - No se generarán deudas
             </Text>
           )}
         </View>
 
         {/* Custom Split Details */}
-        {formData.splitType === 'custom' && (
+        {formData.splitType === 'custom' && !formData.isPaidImmediately && (
           <View style={styles.inputGroup}>
             <View style={styles.customSplitHeader}>
               <Text style={styles.label}>Asignar montos individuales</Text>
@@ -297,18 +345,27 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
             <View style={styles.customSplitContainer}>
               <Text style={styles.customSplitHelp}>
                 💡 Ejemplo: Fueron al restaurante, Juan pagó S/200 con su tarjeta:{'\n'}
-                • María pidió S/45 → ingresar 45{'\n'}
-                • Pedro pidió S/60 → ingresar 60{'\n'}
-                • Ana llegó tarde, no pidió nada → dejar en 0{'\n'}
+                • YO pidió S/45 → ingresar 45{'\n'}
+                • María pidió S/60 → ingresar 60{'\n'}
+                • Pedro llegó tarde, no pidió nada → dejar en 0{'\n'}
                 • Juan pidió S/95 → ingresar 95{'\n'}
                 Total: S/200 ✓
               </Text>
 
-              {party.participants.map((participant) => (
+              {getAllParticipants().map((participant) => (
                 <View key={participant.id} style={styles.participantSplitItem}>
                   <View style={styles.participantSplitInfo}>
-                    <Ionicons name="person" size={16} color="#666" />
-                    <Text style={styles.participantSplitName}>{participant.name}</Text>
+                    <Ionicons 
+                      name={participant.id === 'YO' ? "person-circle" : "person"} 
+                      size={16} 
+                      color={participant.id === 'YO' ? "#007AFF" : "#666"} 
+                    />
+                    <Text style={[
+                      styles.participantSplitName,
+                      participant.id === 'YO' && styles.yoParticipant
+                    ]}>
+                      {participant.name}
+                    </Text>
                   </View>
                   <TextInput
                     style={styles.participantSplitInput}
@@ -387,7 +444,7 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
             </View>
             
             <ScrollView style={styles.modalList}>
-              {party.participants.map((participant) => (
+              {getAllParticipants().map((participant) => (
                 <TouchableOpacity
                   key={participant.id}
                   style={styles.modalItem}
@@ -396,8 +453,17 @@ const PartyExpenseForm = ({ party, expense = null, onSubmit, onCancel }) => {
                     setShowParticipantModal(false);
                   }}
                 >
-                  <Ionicons name="person" size={20} color="#007AFF" />
-                  <Text style={styles.modalItemText}>{participant.name}</Text>
+                  <Ionicons 
+                    name={participant.id === 'YO' ? "person-circle" : "person"} 
+                    size={20} 
+                    color={participant.id === 'YO' ? "#007AFF" : "#007AFF"} 
+                  />
+                  <Text style={[
+                    styles.modalItemText,
+                    participant.id === 'YO' && styles.yoParticipant
+                  ]}>
+                    {participant.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -641,6 +707,49 @@ const styles = StyleSheet.create({
   },
   splitSuccess: {
     color: '#34C759',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#495057',
+    fontWeight: '500',
+  },
+  immediatePaymentInfo: {
+    fontSize: 14,
+    color: '#34C759',
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
+    backgroundColor: '#d4edda',
+    padding: 8,
+    borderRadius: 6,
+  },
+  yoParticipant: {
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
   modalOverlay: {
     flex: 1,

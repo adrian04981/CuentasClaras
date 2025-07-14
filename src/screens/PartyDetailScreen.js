@@ -97,6 +97,7 @@ const PartyDetailScreen = ({ route, navigation }) => {
   }
 
   const getParticipantName = (participantId) => {
+    if (participantId === 'YO') return 'YO';
     const participant = party.participants.find(p => p.id === participantId);
     return participant ? participant.name : 'Desconocido';
   };
@@ -211,6 +212,9 @@ const PartyDetailScreen = ({ route, navigation }) => {
                 <View style={styles.expenseHeader}>
                   <Text style={styles.expenseDescription}>
                     {expense.description}
+                    {expense.isPaidImmediately && (
+                      <Text style={styles.immediatePaymentBadge}> 💰</Text>
+                    )}
                   </Text>
                   <Text style={styles.expenseAmount}>
                     {formatCurrency(expense.amount)}
@@ -219,30 +223,43 @@ const PartyDetailScreen = ({ route, navigation }) => {
                 <View style={styles.expenseFooter}>
                   <Text style={styles.expenseInfo}>
                     Pagado por: {getParticipantName(expense.paidBy)}
+                    {expense.isPaidImmediately && (
+                      <Text style={styles.immediatePaymentText}> (Inmediato)</Text>
+                    )}
                   </Text>
                   <Text style={styles.expenseDate}>{expense.date}</Text>
                 </View>
                 
-                {/* Split details for custom expenses */}
-                {expense.splitType === 'custom' && (
+                {expense.isPaidImmediately ? (
                   <View style={styles.expenseSplitDetails}>
-                    <Text style={styles.expenseSplitTitle}>División personalizada:</Text>
-                    {Object.entries(expense.splitData).map(([participantId, amount]) => (
-                      parseFloat(amount) > 0 && (
-                        <Text key={participantId} style={styles.expenseSplitItem}>
-                          • {getParticipantName(participantId)}: {formatCurrency(amount)}
-                        </Text>
-                      )
-                    ))}
-                  </View>
-                )}
-                
-                {expense.splitType === 'equal' && (
-                  <View style={styles.expenseSplitDetails}>
-                    <Text style={styles.expenseSplitItem}>
-                      División igual: {formatCurrency(expense.amount / party.participants.length)} c/u
+                    <Text style={styles.immediatePaymentInfo}>
+                      ✅ Pagado inmediatamente - Sin deudas generadas
                     </Text>
                   </View>
+                ) : (
+                  <>
+                    {/* Split details for custom expenses */}
+                    {expense.splitType === 'custom' && (
+                      <View style={styles.expenseSplitDetails}>
+                        <Text style={styles.expenseSplitTitle}>División personalizada:</Text>
+                        {Object.entries(expense.splitData).map(([participantId, amount]) => (
+                          parseFloat(amount) > 0 && (
+                            <Text key={participantId} style={styles.expenseSplitItem}>
+                              • {getParticipantName(participantId)}: {formatCurrency(amount)}
+                            </Text>
+                          )
+                        ))}
+                      </View>
+                    )}
+                    
+                    {expense.splitType === 'equal' && (
+                      <View style={styles.expenseSplitDetails}>
+                        <Text style={styles.expenseSplitItem}>
+                          División igual: {formatCurrency(expense.amount / party.participants.length)} c/u
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             ))
@@ -489,6 +506,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 2,
+  },
+  immediatePaymentBadge: {
+    fontSize: 14,
+    color: '#34C759',
+  },
+  immediatePaymentText: {
+    fontSize: 12,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  immediatePaymentInfo: {
+    fontSize: 12,
+    color: '#34C759',
+    fontStyle: 'italic',
+    backgroundColor: '#d4edda',
+    padding: 8,
+    borderRadius: 6,
+    textAlign: 'center',
   },
   actions: {
     padding: 16,

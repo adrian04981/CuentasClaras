@@ -567,10 +567,11 @@ class StorageManager {
         description: expenseData.description,
         amount: parseFloat(expenseData.amount),
         paidBy: expenseData.paidBy, // participant ID who paid
-        splitType: expenseData.splitType, // 'equal', 'custom', 'percentage'
+        splitType: expenseData.splitType, // 'equal', 'custom', 'percentage', 'immediate'
         splitData: expenseData.splitData || {}, // { participantId: amount/percentage }
         category: expenseData.category || 'Otros',
         date: expenseData.date || new Date().toISOString().split('T')[0],
+        isPaidImmediately: expenseData.isPaidImmediately || false,
         createdAt: new Date().toISOString()
       };
       
@@ -626,6 +627,11 @@ class StorageManager {
 
       // Calculate what each person owes/is owed
       expenses.forEach(expense => {
+        // Skip immediate payments - they don't create debts
+        if (expense.isPaidImmediately) {
+          return;
+        }
+
         const paidBy = expense.paidBy;
         const amount = expense.amount;
 
